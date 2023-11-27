@@ -2,9 +2,9 @@
 
 namespace Shawnveltman\LaravelMinifier;
 
+use Shawnveltman\LaravelMinifier\Commands\LaravelMinifierCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Shawnveltman\LaravelMinifier\Commands\LaravelMinifierCommand;
 
 class LaravelMinifierServiceProvider extends PackageServiceProvider
 {

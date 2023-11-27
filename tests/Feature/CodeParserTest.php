@@ -11,22 +11,20 @@ use ReflectionException;
 use ReflectionMethod;
 use Shawnveltman\LaravelMinifier\CodeParser\ClassContentService;
 use Shawnveltman\LaravelMinifier\CodeParser\MethodAnalysisService;
-use Shawnveltman\LaravelMinifier\Tests\Fixtures\
-{AbstractClassWithMethods,
-    AliasesUseStatementClass,
-    BaseClass,
-    ChildClass,
-    ClassUsingInheritedTraits,
-    ClassWithMultipleNamespaceAliases,
-    ClassWithTrait,
-    DirectInstantiationClass,
-    EmptyClass,
-    InterfaceImplementingClass,
-    InterfaceToImplement,
-    MultipleMethodsClass,
-    OtherClass,
-    StaticMethodClass};
-
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\AbstractClassWithMethods;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\AliasesUseStatementClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\BaseClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ChildClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassUsingInheritedTraits;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithMultipleNamespaceAliases;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\DirectInstantiationClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\EmptyClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\InterfaceImplementingClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\InterfaceToImplement;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\MultipleMethodsClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\OtherClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\StaticMethodClass;
 
 it('analyzes a class and returns all own method dependencies', function () {
     Config::set('minifier.namespaces', [
@@ -54,7 +52,7 @@ it('creates class files with the required methods', function () {
         'App',
         'Shawnveltman\LaravelMinifier\Tests\Fixtures',
     ]);
-    $contentService  = new ClassContentService();
+    $contentService = new ClassContentService();
     $analysisService = new MethodAnalysisService();
 
     // Mock Storage Facade to prevent actual filesystem interaction
@@ -107,7 +105,7 @@ it('analyzes a class using a trait and includes the trait methods', function () 
     $values = $analysisService->analyze_class(ClassWithTrait::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey("Shawnveltman\LaravelMinifier\Tests\Fixtures\ExampleTrait");
-//    expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait"])->toContain('methodUsingTrait');
+    //    expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait"])->toContain('methodUsingTrait');
     expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ExampleTrait"])->toContain('traitMethod');
 });
 
@@ -157,7 +155,7 @@ it('handles use statements with aliases correctly', function () {
     expect($values[AliasesUseStatementClass::class])->toContain('methodWithAliasUse');
 });
 
-it('tracks classes instantiated within methods', function() {
+it('tracks classes instantiated within methods', function () {
     $analysisService = new MethodAnalysisService();
     $values = $analysisService->analyze_class(DirectInstantiationClass::class);
     expect($values)->toBeArray();
@@ -175,7 +173,7 @@ it('includes protected parent methods accessed by child classes', function () {
     expect($values[BaseClass::class])->toContain('parentProtectedMethod');
 });
 
-it('includes depended-upon static methods', function() {
+it('includes depended-upon static methods', function () {
     $analysisService = new MethodAnalysisService();
     $values = $analysisService->analyze_class(StaticMethodClass::class);
     expect($values)->toBeArray();
@@ -203,7 +201,7 @@ it('resolves trait inheritance dependencies correctly', function () {
     expect($values)->toBeArray();
     expect($values)->toHaveKey(ClassUsingInheritedTraits::class);
     expect($values[ClassUsingInheritedTraits::class])->toContain('inheritedTraitMethod');
-})->skip(fn () => !class_exists(ClassUsingInheritedTraits::class));
+})->skip(fn () => ! class_exists(ClassUsingInheritedTraits::class));
 
 it('analyzes classes implementing interfaces correctly', function () {
     $analysisService = new MethodAnalysisService();
@@ -222,7 +220,7 @@ it('analyzes classes implementing interfaces correctly', function () {
         expect($values[InterfaceImplementingClass::class])->toContain($method->getName());
     }
 
-})->skip(fn () => !interface_exists(InterfaceToImplement::class) || !class_exists(InterfaceImplementingClass::class));
+})->skip(fn () => ! interface_exists(InterfaceToImplement::class) || ! class_exists(InterfaceImplementingClass::class));
 it('manages multiple namespace aliases correctly', function () {
     $analysisService = new MethodAnalysisService();
 
@@ -230,7 +228,7 @@ it('manages multiple namespace aliases correctly', function () {
 
     expect($values)->toBeArray();
     expect($values[ClassWithMultipleNamespaceAliases::class])->toBe(['methodWithMultipleAliases']);
-})->skip(fn () => !class_exists(ClassWithMultipleNamespaceAliases::class));
+})->skip(fn () => ! class_exists(ClassWithMultipleNamespaceAliases::class));
 
 it('handles errors and logs them appropriately when a class file cannot be analyzed', function () {
     $analysisService = new MethodAnalysisService();
@@ -238,10 +236,7 @@ it('handles errors and logs them appropriately when a class file cannot be analy
 
     Log::shouldReceive('error')
         ->once()
-        ->withArgs(fn($message) => str_contains($message, $brokenClassName));
+        ->withArgs(fn ($message) => str_contains($message, $brokenClassName));
 
     $analysisService->analyze_class($brokenClassName);
 })->throws(ReflectionException::class);
-
-
-

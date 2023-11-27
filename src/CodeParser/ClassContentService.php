@@ -12,28 +12,26 @@ class ClassContentService
     {
         $classContents = [];
 
-        foreach ($requiredClassesAndMethods as $className => $methods)
-        {
-            $reflection  = new ReflectionClass($className);
+        foreach ($requiredClassesAndMethods as $className => $methods) {
+            $reflection = new ReflectionClass($className);
             $fileContent = file_get_contents($reflection->getFileName());
-            $lines       = explode("\n", $fileContent);
+            $lines = explode("\n", $fileContent);
 
             // Manually reconstruct the class definition
-            $namespace       = $reflection->getNamespaceName();
-            $useStatements   = $this->extractUseStatements($fileContent);
+            $namespace = $reflection->getNamespaceName();
+            $useStatements = $this->extractUseStatements($fileContent);
             $classDefinition = "class {$reflection->getShortName()}";
 
             // Add namespace and use statements
             $newClassContent = "<?php\n\nnamespace {$namespace};\n\n{$useStatements}\n\n{$classDefinition}\n{";
 
             // Add each required method
-            foreach ($methods as $methodName)
-            {
+            foreach ($methods as $methodName) {
                 $methodReflection = new ReflectionMethod($className, $methodName);
-                $startLine        = $methodReflection->getStartLine() - 1;
-                $endLine          = $methodReflection->getEndLine();
-                $methodContent    = implode("\n", array_slice($lines, $startLine, $endLine - $startLine));
-                $newClassContent .= "\n\n" . $methodContent;
+                $startLine = $methodReflection->getStartLine() - 1;
+                $endLine = $methodReflection->getEndLine();
+                $methodContent = implode("\n", array_slice($lines, $startLine, $endLine - $startLine));
+                $newClassContent .= "\n\n".$methodContent;
             }
 
             $newClassContent .= "\n}\n";
@@ -56,14 +54,11 @@ class ClassContentService
         $lines = explode("\n", $fileContent);
 
         // Iterate through the lines and extract use statements
-        foreach ($lines as $line)
-        {
+        foreach ($lines as $line) {
             // Check if the line starts with 'use'
-            if (preg_match('/^\s*use\s+[a-zA-Z0-9_\\\\]+;/', $line))
-            {
+            if (preg_match('/^\s*use\s+[a-zA-Z0-9_\\\\]+;/', $line)) {
                 $useStatements[] = trim($line);
-            } elseif (! empty(trim($line)) && ! str_starts_with(trim($line), 'use'))
-            {
+            } elseif (! empty(trim($line)) && ! str_starts_with(trim($line), 'use')) {
                 // Stop parsing when we reach a line that is neither a 'use' statement nor empty
                 break;
             }
