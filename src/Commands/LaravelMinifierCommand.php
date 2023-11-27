@@ -12,7 +12,7 @@ class LaravelMinifierCommand extends Command
 
     public function handle(): int
     {
-        $this->comment('All done');
+        $this->comment('Coming soon...');
 
         return self::SUCCESS;
     }
