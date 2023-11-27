@@ -12,8 +12,7 @@ class ClassContentService
     {
         $classContents = [];
 
-        foreach ($requiredClassesAndMethods as $className => $methods)
-        {
+        foreach ($requiredClassesAndMethods as $className => $methods) {
             $reflection  = new ReflectionClass($className);
             $fileContent = file_get_contents($reflection->getFileName());
             $lines       = explode("\n", $fileContent);
@@ -27,18 +26,20 @@ class ClassContentService
             $newClassContent = "<?php\n\nnamespace {$namespace};\n\n{$useStatements}\n\n{$classDefinition}\n{";
 
             // Add each required method
-            foreach ($methods as $methodName)
-            {
+            foreach ($methods as $methodName) {
                 $methodReflection = new ReflectionMethod($className, $methodName);
                 $startLine        = $methodReflection->getStartLine() - 1;
                 $endLine          = $methodReflection->getEndLine();
                 $methodContent    = implode("\n", array_slice($lines, $startLine, $endLine - $startLine));
-                $newClassContent .= "\n\n" . $methodContent;
+                $newClassContent .= "\n\n    " . $methodContent;
             }
 
             $newClassContent .= "\n}\n";
 
-            $classContents[] = $newClassContent;
+            // Ensure that each class is only added once
+            if (!isset($classContents[$className])) {
+                $classContents[$className] = $newClassContent;
+            }
         }
 
         // Combine all class contents
@@ -47,6 +48,7 @@ class ClassContentService
         // Save to file
         Storage::disk(config('minifier.disk'))->put(config('minifier.path'), $combinedContent);
     }
+
 
     private function extractUseStatements($fileContent)
     {

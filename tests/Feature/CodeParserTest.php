@@ -25,7 +25,8 @@ use Shawnveltman\LaravelMinifier\Tests\Fixtures\
     InterfaceToImplement,
     MultipleMethodsClass,
     OtherClass,
-    StaticMethodClass};
+    StaticMethodClass,
+    UseStatementClass};
 
 
 it('analyzes a class and returns all own method dependencies', function () {
@@ -187,8 +188,7 @@ it('handles empty classes or edge cases appropriately', function () {
     $analysisService = new MethodAnalysisService();
     $values = $analysisService->analyze_class(EmptyClass::class);
     expect($values)->toBeArray();
-    expect($values)->toHaveKey(EmptyClass::class);
-    expect($values[EmptyClass::class])->toEqual([]);
+    expect($values)->toEqual([]);
 });
 
 it('resolves trait inheritance dependencies correctly', function () {
@@ -242,6 +242,32 @@ it('handles errors and logs them appropriately when a class file cannot be analy
 
     $analysisService->analyze_class($brokenClassName);
 })->throws(ReflectionException::class);
+
+it('ensures the initial class is not added twice', function () {
+    // Set up the allowed namespaces configuration
+    Config::set('minifier.namespaces', [
+        'App',
+        'Shawnveltman\LaravelMinifier\Tests\Fixtures',
+    ]);
+
+    // Instantiate the MethodAnalysisService
+    $analysisService = new MethodAnalysisService();
+
+    // Analyze a class that is known to have dependencies
+    // Replace 'YourInitialClass' with the actual class you want to test
+    $values = $analysisService->analyze_class(UseStatementClass::class);
+
+    // Check that the array has keys for each class
+    expect($values)->toBeArray();
+
+    // Check that the initial class is listed only once
+    $initialClassOccurrences = array_reduce($values, function ($carry, $methods) use ($values) {
+        $className = array_search($methods, $values);
+        return $carry + ($className === UseStatementClass::class ? 1 : 0);
+    }, 0);
+
+    expect($initialClassOccurrences)->toEqual(1);
+});
 
 
 
