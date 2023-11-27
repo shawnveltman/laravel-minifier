@@ -13,7 +13,7 @@ class LaravelMinifierCommand extends Command
 
     public function handle()
     {
-        $directories = ['config','src','tests'];
+        $directories = ['config', 'src', 'tests'];
         $blobPath = base_path('all_files.txt');
 
         foreach ($directories as $directory) {
