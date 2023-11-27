@@ -2,6 +2,7 @@
 
 namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
 
-class ClassUsingInheritedTraits {
+class ClassUsingInheritedTraits
+{
     use ChildTrait;
 }

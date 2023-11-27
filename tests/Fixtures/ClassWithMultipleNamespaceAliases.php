@@ -2,11 +2,13 @@
 
 namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
 
-use Some\Namespace\ClassA as First;
 use Another\Namespace\ClassB as Second;
+use Some\Namespace\ClassA as First;
 
-class ClassWithMultipleNamespaceAliases {
-    public function methodWithMultipleAliases(First $first, Second $second) {
+class ClassWithMultipleNamespaceAliases
+{
+    public function methodWithMultipleAliases(First $first, Second $second)
+    {
         // Implementation...
     }
 }

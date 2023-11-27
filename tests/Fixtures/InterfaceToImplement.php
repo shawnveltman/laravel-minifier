@@ -2,6 +2,7 @@
 
 namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
 
-interface InterfaceToImplement {
+interface InterfaceToImplement
+{
     public function interfaceMethod();
 }
