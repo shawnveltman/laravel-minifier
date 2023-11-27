@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton;
+namespace Shawnveltman\LaravelMinifier;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use VendorName\Skeleton\Commands\SkeletonCommand;
+use Shawnveltman\LaravelMinifier\Commands\LaravelMinifierCommand;
 
-class SkeletonServiceProvider extends PackageServiceProvider
+class LaravelMinifierServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
@@ -16,10 +16,10 @@ class SkeletonServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package
-            ->name('skeleton')
+            ->name('laravel-minifier')
             ->hasConfigFile()
-            ->hasViews()
-            ->hasMigration('create_skeleton_table')
-            ->hasCommand(SkeletonCommand::class);
+//            ->hasViews()
+//            ->hasMigration('create_laravel-minifier_table')
+            ->hasCommand(LaravelMinifierCommand::class);
     }
 }

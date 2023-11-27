@@ -1,17 +1,17 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "shawnveltman/laravel-minifier",
+    "description": "A package to get relevant pieces of your codebase for LLM analysis",
     "keywords": [
-        ":vendor_name",
+        "Shawnveltman",
         "laravel",
-        ":package_slug"
+        "laravel-minifier"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/shawnveltman/laravel-minifier",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "Shawn Veltman",
+            "email": "shawn.veltman@gmail.com",
             "role": "Developer"
         }
     ],
@@ -35,19 +35,20 @@
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "Shawnveltman\\LaravelMinifier\\": "src/",
+            "Shawnveltman\\LaravelMinifier\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
-            "Workbench\\App\\": "workbench/app/"
+            "Shawnveltman\\LaravelMinifier\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Shawnveltman\\LaravelMinifier\\Tests\\Fixtures\\": "tests/Fixtures/"
         }
     },
     "scripts": {
         "post-autoload-dump": "@composer run prepare",
-        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "clear": "@php vendor/bin/testbench package:purge-laravel-minifier --ansi",
         "prepare": "@php vendor/bin/testbench package:discover --ansi",
         "build": [
             "@composer run prepare",
@@ -73,10 +74,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "Shawnveltman\\LaravelMinifier\\LaravelMinifierServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "LaravelMinifier": "Shawnveltman\\LaravelMinifier\\Facades\\LaravelMinifier"
             }
         }
     },
