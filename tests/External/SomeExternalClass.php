@@ -4,5 +4,4 @@ namespace External;
 
 class SomeExternalClass
 {
-
 }
