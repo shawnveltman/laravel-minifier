@@ -42,6 +42,7 @@
     "autoload-dev": {
         "psr-4": {
             "Shawnveltman\\LaravelMinifier\\Tests\\": "tests/",
+            "External\\": "tests/External",
             "Workbench\\App\\": "workbench/app/",
             "Shawnveltman\\LaravelMinifier\\Tests\\Fixtures\\": "tests/Fixtures/"
         }

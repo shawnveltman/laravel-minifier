@@ -14,7 +14,18 @@ class MethodAnalysisService
     public function analyze_class($className, $methodName = null): array
     {
         $reflection = $this->get_reflection_class($className);
+        if(! $reflection)
+        {
+            return [];
+        }
         $currentNamespace = $reflection->getNamespaceName();
+
+        $allowed_namespaces = collect(config('minifier.namespaces', ['App']));
+        if(! $allowed_namespaces->contains($currentNamespace))
+        {
+            return [];
+        }
+
         $this->requiredMethods[$reflection->getName()] = [];
 
         if ($methodName) {
@@ -153,14 +164,14 @@ class MethodAnalysisService
         return $useStatements;
     }
 
-    private function get_reflection_class($className): ReflectionClass
+    private function get_reflection_class($className): ReflectionClass | null
     {
         try {
             $reflection = new ReflectionClass($className);
         } catch (\ReflectionException $e) {
             Log::error('Class analysis failed: '.$e->getMessage());
             // Re-throw the exception if you want to ensure that calling code can also handle it
-            throw $e;
+            return null;
         }
 
         return $reflection;

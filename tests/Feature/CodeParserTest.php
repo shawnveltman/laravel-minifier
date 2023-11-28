@@ -2,12 +2,10 @@
 
 namespace Shawnveltman\LaravelMinifier\Tests\Feature;
 
-use Exception;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use ReflectionClass;
-use ReflectionException;
 use ReflectionMethod;
 use Shawnveltman\LaravelMinifier\CodeParser\ClassContentService;
 use Shawnveltman\LaravelMinifier\CodeParser\MethodAnalysisService;
@@ -27,7 +25,6 @@ use Shawnveltman\LaravelMinifier\Tests\Fixtures\
     OtherClass,
     StaticMethodClass,
     UseStatementClass};
-
 
 it('analyzes a class and returns all own method dependencies', function () {
     Config::set('minifier.namespaces', [
@@ -131,28 +128,32 @@ it('analyzes a class using a trait and includes the trait methods and methods of
     expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait"])->toContain('methodUsingTrait');
 });
 
-it('throws an exception when a nonexistent class is analyzed', function () {
-    $analysisService = new MethodAnalysisService();
+it('returns empty array for nonexistant class', function () {
+    $analysisService  = new MethodAnalysisService();
     $nonExistentClass = 'NonExistentClass';
-    $analysisService->analyze_class($nonExistentClass);
-})->throws(Exception::class);
+    $values           = $analysisService->analyze_class($nonExistentClass);
+    expect($values)->toBeArray();
+    expect($values)->toEqual([]);
+});
 
 it('throws an exception when a non-class is passed', function () {
     $analysisService = new MethodAnalysisService();
-    $nonClass = 'SomeRandomString';
-    $analysisService->analyze_class($nonClass);
-})->throws(Exception::class);
+    $nonClass        = 'SomeRandomString';
+    $values          = $analysisService->analyze_class($nonClass);
+    expect($values)->toBeArray();
+    expect($values)->toEqual([]);
+});
 
 it('analyzes abstract classes and abstract methods correctly', function () {
     $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(AbstractClassWithMethods::class);
+    $values          = $analysisService->analyze_class(AbstractClassWithMethods::class);
     expect($values)->toBeArray();
     expect($values[AbstractClassWithMethods::class])->toContain('abstractMethod');
 });
 
 it('handles use statements with aliases correctly', function () {
     $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(AliasesUseStatementClass::class);
+    $values          = $analysisService->analyze_class(AliasesUseStatementClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(AliasesUseStatementClass::class);
     expect($values[AliasesUseStatementClass::class])->toContain('methodWithAliasUse');
@@ -160,15 +161,15 @@ it('handles use statements with aliases correctly', function () {
 
 it('includes protected parent methods accessed by child classes', function () {
     $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(ChildClass::class);
+    $values          = $analysisService->analyze_class(ChildClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(BaseClass::class);
     expect($values[BaseClass::class])->toContain('parentProtectedMethod');
 });
 
-it('includes depended-upon static methods', function() {
+it('includes depended-upon static methods', function () {
     $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(StaticMethodClass::class);
+    $values          = $analysisService->analyze_class(StaticMethodClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(StaticMethodClass::class);
     expect($values[StaticMethodClass::class])->toContain('staticMethod');
@@ -176,7 +177,7 @@ it('includes depended-upon static methods', function() {
 
 it('handles empty classes or edge cases appropriately', function () {
     $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(EmptyClass::class);
+    $values          = $analysisService->analyze_class(EmptyClass::class);
     expect($values)->toEqual([EmptyClass::class => []]);
 });
 
@@ -192,7 +193,7 @@ it('resolves trait inheritance dependencies correctly', function () {
     expect($values)->toBeArray();
     expect($values)->toHaveKey(ClassUsingInheritedTraits::class);
     expect($values[ClassUsingInheritedTraits::class])->toContain('inheritedTraitMethod');
-})->skip(fn () => !class_exists(ClassUsingInheritedTraits::class));
+})->skip(fn() => !class_exists(ClassUsingInheritedTraits::class));
 
 it('analyzes classes implementing interfaces correctly', function () {
     $analysisService = new MethodAnalysisService();
@@ -205,13 +206,14 @@ it('analyzes classes implementing interfaces correctly', function () {
 
     // Use reflection to get the methods from the interface
     $interfaceReflection = new ReflectionClass(InterfaceToImplement::class);
-    $methods = $interfaceReflection->getMethods(ReflectionMethod::IS_PUBLIC);
+    $methods             = $interfaceReflection->getMethods(ReflectionMethod::IS_PUBLIC);
 
-    foreach ($methods as $method) {
+    foreach ($methods as $method)
+    {
         expect($values[InterfaceImplementingClass::class])->toContain($method->getName());
     }
 
-})->skip(fn () => !interface_exists(InterfaceToImplement::class) || !class_exists(InterfaceImplementingClass::class));
+})->skip(fn() => !interface_exists(InterfaceToImplement::class) || !class_exists(InterfaceImplementingClass::class));
 it('manages multiple namespace aliases correctly', function () {
     $analysisService = new MethodAnalysisService();
 
@@ -219,7 +221,7 @@ it('manages multiple namespace aliases correctly', function () {
 
     expect($values)->toBeArray();
     expect($values[ClassWithMultipleNamespaceAliases::class])->toBe(['methodWithMultipleAliases']);
-})->skip(fn () => !class_exists(ClassWithMultipleNamespaceAliases::class));
+})->skip(fn() => !class_exists(ClassWithMultipleNamespaceAliases::class));
 
 it('handles errors and logs them appropriately when a class file cannot be analyzed', function () {
     $analysisService = new MethodAnalysisService();
@@ -229,8 +231,10 @@ it('handles errors and logs them appropriately when a class file cannot be analy
         ->once()
         ->withArgs(fn($message) => str_contains($message, $brokenClassName));
 
-    $analysisService->analyze_class($brokenClassName);
-})->throws(ReflectionException::class);
+    $values = $analysisService->analyze_class($brokenClassName);
+    expect($values)->toBeArray();
+    expect($values)->toEqual([]);
+});
 
 it('ensures the initial class is not added twice', function () {
     // Set up the allowed namespaces configuration
@@ -258,13 +262,76 @@ it('ensures the initial class is not added twice', function () {
     expect($initialClassOccurrences)->toEqual(1);
 });
 
-it('tracks classes instantiated within methods', function() {
+it('tracks classes instantiated within methods', function () {
     $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(DirectInstantiationClass::class);
+    $values          = $analysisService->analyze_class(DirectInstantiationClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(DirectInstantiationClass::class);
     expect($values[DirectInstantiationClass::class])->toContain('methodWithInstantiation');
     ray($values);
     expect($values)->toHaveKey(OtherClass::class);
     expect($values[OtherClass::class])->toContain('doSomething');
+});
+
+it('collects methods from classes that are called within the analyzed class', function () {
+    Config::set('minifier.namespaces', [
+        'Shawnveltman\LaravelMinifier\Tests\Fixtures',
+    ]);
+    $analysisService = new MethodAnalysisService();
+
+    // Analyze MultipleMethodsClass which has internal method dependencies.
+    $values = $analysisService->analyze_class(MultipleMethodsClass::class);
+    // Expect the second method to be detected as a dependency
+    expect($values[MultipleMethodsClass::class])->toContain('secondMethod');
+});
+
+//// TODO: Implement this at some point later
+//it('collects methods from nested traits used within the analyzed class', function () {
+//    Config::set('minifier.namespaces', [
+//        'Shawnveltman\LaravelMinifier\Tests\Fixtures',
+//    ]);
+//    $analysisService = new MethodAnalysisService();
+//
+//    $values = $analysisService->analyze_class(ClassUsingInheritedTraits::class);
+//
+//    ray($values);
+//    // Expect the nested trait method to be detected
+//    expect($values)->toHaveKey(ParentTrait::class);
+//    expect($values[ParentTrait::class])->toContain('inheritedTraitMethod');
+//});
+
+it('does not analyze classes that are outside of the configured namespaces', function () {
+    $analysisService       = new MethodAnalysisService();
+    $outsideNamespaceClass = 'External\SomeExternalClass';
+
+    Config::set('minifier.namespaces', [
+        'Shawnveltman\LaravelMinifier\Tests\Fixtures',
+        // Do not include 'External' namespace here
+    ]);
+
+    $values = $analysisService->analyze_class($outsideNamespaceClass);
+    ray($values);
+    expect(isset($values[$outsideNamespaceClass]))->toBeFalse();
+});
+
+it('captures the full class definition with parent classes and interfaces', function () {
+    // Assuming we have a test class with a parent and interface.
+    // You'll need to create these examples in the Fixtures, similar to existing ones.
+
+    $requiredClassesAndMethods = [
+        ChildClass::class => ['childMethod'],
+    ];
+    $contentService            = new ClassContentService();
+
+    Storage::fake('local');
+    Config::set('minifier.disk', 'local');
+    Config::set('minifier.path', 'output.php');
+
+    $contentService->createClassFiles($requiredClassesAndMethods);
+
+    $storedContent = Storage::disk('local')->get('output.php');
+
+    // These are basic string checks, but you could enhance by actually checking PHP syntax/parsing if needed
+    expect($storedContent)->toContain('class ChildClass extends BaseClass');
+    expect($storedContent)->toContain('implements SomeInterface'); // If ChildClass implements SomeInterface
 });

@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\File;
 test('hello', function () {
     $directories = ['config', 'src', 'tests'];
     $blobPath = 'all_files.txt';
-
+    unlink('all_files.txt');
     foreach ($directories as $directory) {
         $files = File::allFiles($directory);
 
