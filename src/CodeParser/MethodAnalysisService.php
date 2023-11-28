@@ -38,8 +38,8 @@ class MethodAnalysisService
         foreach ($traits as $traitName) {
             $traitReflection = new ReflectionClass($traitName);
             foreach ($traitReflection->getMethods() as $traitMethod) {
-                $this->requiredMethods[$traitName] ??=[];
-                if (!in_array($traitMethod->getName(), $this->requiredMethods[$traitName])) {
+                $this->requiredMethods[$traitName] ??= [];
+                if (! in_array($traitMethod->getName(), $this->requiredMethods[$traitName])) {
                     $this->requiredMethods[$traitName][] = $traitMethod->getName();
                 }
             }
@@ -70,6 +70,7 @@ class MethodAnalysisService
             $traits = array_merge($traits, $class->getTraitNames());
             $class = $class->getParentClass();
         }
+
         return $traits;
     }
 
@@ -107,8 +108,8 @@ class MethodAnalysisService
         if (preg_match_all('/\bnew\s+([a-zA-Z0-9_]+)\b/', $methodBody, $matches)) {
             foreach ($matches[1] as $className) {
                 // If the class name does not include a namespace, prepend the current namespace
-                if (!str_contains($className, '\\')) {
-                    $className = $currentNamespace . '\\' . $className;
+                if (! str_contains($className, '\\')) {
+                    $className = $currentNamespace.'\\'.$className;
                 }
 
                 // Check if the class exists
