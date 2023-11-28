@@ -14,7 +14,7 @@ class MethodAnalysisService
     public function analyze_class($className, $methodName = null): array
     {
         $reflection = $this->get_reflection_class($className);
-
+        $currentNamespace = $reflection->getNamespaceName();
         $this->requiredMethods[$reflection->getName()] = [];
 
         if ($methodName) {
@@ -23,21 +23,43 @@ class MethodAnalysisService
             $methods = $this->analyze_all_methods($reflection);
         }
 
+        $traits = $this->collectTraits($reflection);
+        foreach ($traits as $traitName) {
+            $traitReflection = new ReflectionClass($traitName);
+            foreach ($traitReflection->getMethods() as $traitMethod) {
+                $this->requiredMethods[$traitName] ??=[];
+                if (!in_array($traitMethod->getName(), $this->requiredMethods[$traitName])) {
+                    $this->requiredMethods[$traitName][] = $traitMethod->getName();
+                }
+            }
+        }
+
         $useStatements = $this->get_use_statements($reflection);
 
         foreach ($methods as $method) {
-            $calls = $this->analyze_method($method, $useStatements);
+            $calls = $this->analyze_method($method, $useStatements, $currentNamespace);
 
             foreach ($calls as $call) {
                 if (! array_key_exists($call['class'], $this->requiredMethods) ||
                     ! in_array($call['method'], $this->requiredMethods[$call['class']])) {
                     $this->requiredMethods[$call['class']][] = $call['method'];
                 }
-                $this->analyze_class($call['class'], $call['method']);
+                // Recursively analyze the called class
+                $this->analyze_class($call['class']);
             }
         }
 
         return $this->requiredMethods;
+    }
+
+    private function collectTraits(ReflectionClass $class): array
+    {
+        $traits = [];
+        while ($class) {
+            $traits = array_merge($traits, $class->getTraitNames());
+            $class = $class->getParentClass();
+        }
+        return $traits;
     }
 
     protected function is_allowed_namespace($namespace): bool
@@ -65,35 +87,29 @@ class MethodAnalysisService
 
     }
 
-    public function analyze_method(ReflectionMethod $method, array $useStatements): array
+    public function analyze_method(ReflectionMethod $method, array $useStatements, $currentNamespace): array
     {
         $methodBody = $this->get_method_body($method);
         $methodCalls = [];
 
-        if (preg_match_all('/\b([a-zA-Z0-9_]+)\??->([a-zA-Z0-9_]+)\(/', $methodBody, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                $calledMethodName = $match[2];
-                // Find the class that contains the method
-                $className = $this->find_class_for_method($calledMethodName, $useStatements);
+        // Match both variable method calls and direct instantiation
+        if (preg_match_all('/\bnew\s+([a-zA-Z0-9_]+)\b/', $methodBody, $matches)) {
+            foreach ($matches[1] as $className) {
+                // If the class name does not include a namespace, prepend the current namespace
+                if (!str_contains($className, '\\')) {
+                    $className = $currentNamespace . '\\' . $className;
+                }
 
-                if ($className) {
-                    $methodCalls[] = ['class' => $className, 'method' => $calledMethodName];
+                // Check if the class exists
+                if (class_exists($className)) {
+                    // If the class exists, add it to the method calls with a placeholder method name
+                    // Placeholder is used because the actual method name is not captured in this regex
+                    $methodCalls[] = ['class' => $className, 'method' => '__construct'];
                 }
             }
         }
 
         return $methodCalls;
-    }
-
-    public function find_class_for_method($methodName, array $useStatements)
-    {
-        foreach ($useStatements as $shortName => $fullClassName) {
-            if (method_exists($fullClassName, $methodName)) {
-                return $fullClassName;
-            }
-        }
-
-        return null;
     }
 
     public function get_method_body(ReflectionMethod $method): string

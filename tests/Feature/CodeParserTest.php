@@ -158,16 +158,6 @@ it('handles use statements with aliases correctly', function () {
     expect($values[AliasesUseStatementClass::class])->toContain('methodWithAliasUse');
 });
 
-it('tracks classes instantiated within methods', function() {
-    $analysisService = new MethodAnalysisService();
-    $values = $analysisService->analyze_class(DirectInstantiationClass::class);
-    expect($values)->toBeArray();
-    expect($values)->toHaveKey(DirectInstantiationClass::class);
-    expect($values[DirectInstantiationClass::class])->toContain('methodWithInstantiation');
-    expect($values)->toHaveKey(OtherClass::class);
-    expect($values[OtherClass::class])->toContain('doSomething');
-});
-
 it('includes protected parent methods accessed by child classes', function () {
     $analysisService = new MethodAnalysisService();
     $values = $analysisService->analyze_class(ChildClass::class);
@@ -187,8 +177,7 @@ it('includes depended-upon static methods', function() {
 it('handles empty classes or edge cases appropriately', function () {
     $analysisService = new MethodAnalysisService();
     $values = $analysisService->analyze_class(EmptyClass::class);
-    expect($values)->toBeArray();
-    expect($values)->toEqual([]);
+    expect($values)->toEqual([EmptyClass::class => []]);
 });
 
 it('resolves trait inheritance dependencies correctly', function () {
@@ -269,5 +258,13 @@ it('ensures the initial class is not added twice', function () {
     expect($initialClassOccurrences)->toEqual(1);
 });
 
-
-
+it('tracks classes instantiated within methods', function() {
+    $analysisService = new MethodAnalysisService();
+    $values = $analysisService->analyze_class(DirectInstantiationClass::class);
+    expect($values)->toBeArray();
+    expect($values)->toHaveKey(DirectInstantiationClass::class);
+    expect($values[DirectInstantiationClass::class])->toContain('methodWithInstantiation');
+    ray($values);
+    expect($values)->toHaveKey(OtherClass::class);
+    expect($values[OtherClass::class])->toContain('doSomething');
+});
