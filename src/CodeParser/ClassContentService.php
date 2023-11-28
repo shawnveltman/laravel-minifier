@@ -40,7 +40,7 @@ class ClassContentService
 
                 $endLine = $methodReflection->getEndLine();
                 $methodContent = implode("\n", array_slice($lines, $startLine, $endLine - $startLine));
-                $newClassContent .= "\n\n" . $methodContent;
+                $newClassContent .= "\n\n".$methodContent;
             }
 
             $newClassContent .= "\n}\n";
@@ -65,6 +65,7 @@ class ClassContentService
                 return $trait->getMethod($method->getName());
             }
         }
+
         return null;
     }
 
