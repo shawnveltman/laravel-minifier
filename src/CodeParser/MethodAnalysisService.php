@@ -32,13 +32,24 @@ class MethodAnalysisService
             $methods = $this->analyze_all_methods($reflection);
         }
 
-        $traits = $this->collectTraits($reflection);
+        [$traits, $traitAliases] = $this->collectTraits($reflection);
+
         foreach ($traits as $traitName) {
             $traitReflection = new ReflectionClass($traitName);
             foreach ($traitReflection->getMethods() as $traitMethod) {
-                $this->requiredMethods[$traitName] ??= [];
-                if (! in_array($traitMethod->getName(), $this->requiredMethods[$traitName])) {
-                    $this->requiredMethods[$traitName][] = $traitMethod->getName();
+                $methodName = $traitMethod->getName();
+
+                if (isset($traitAliases[$methodName])) {
+                    $aliasedMethodName = $traitAliases[$methodName];
+                    $this->requiredMethods[$reflection->getName()] ??= [];
+                    if (!in_array($aliasedMethodName, $this->requiredMethods[$reflection->getName()])) {
+                        $this->requiredMethods[$reflection->getName()][] = $aliasedMethodName;
+                    }
+                } else {
+                    $this->requiredMethods[$traitName] ??= [];
+                    if (!in_array($methodName, $this->requiredMethods[$traitName])) {
+                        $this->requiredMethods[$traitName][] = $methodName;
+                    }
                 }
             }
         }
@@ -64,12 +75,25 @@ class MethodAnalysisService
     private function collectTraits(ReflectionClass $class): array
     {
         $traits = [];
+        $traitAliases = [];
+
         while ($class) {
-            $traits = array_merge($traits, $class->getTraitNames());
+            $traitNames = $class->getTraitNames();
+            foreach ($traitNames as $traitName) {
+                $trait = new ReflectionClass($traitName);
+                $traits[] = $traitName;
+
+                foreach ($class->getTraitAliases() as $method => $alias) {
+                    if ($trait->hasMethod($method)) {
+                        $traitAliases[$alias] = $method;
+                    }
+                }
+            }
+
             $class = $class->getParentClass();
         }
 
-        return $traits;
+        return [$traits, $traitAliases];
     }
 
     protected function is_allowed_namespace($namespace): bool
@@ -193,8 +217,17 @@ class MethodAnalysisService
     private function analyze_all_methods(ReflectionClass $reflection): array
     {
         $methods = $this->get_own_methods($reflection);
+
         foreach ($methods as $method) {
             $this->requiredMethods[$reflection->getName()][] = $method->getName();
+        }
+
+        // Handle abstract methods
+        if ($reflection->isAbstract()) {
+            $abstractMethods = $reflection->getMethods(ReflectionMethod::IS_ABSTRACT);
+            foreach ($abstractMethods as $abstractMethod) {
+                $this->requiredMethods[$reflection->getName()][] = $abstractMethod->getName();
+            }
         }
 
         $parentClass = $reflection->getParentClass();

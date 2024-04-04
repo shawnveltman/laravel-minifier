@@ -9,6 +9,7 @@ use ReflectionClass;
 use ReflectionMethod;
 use Shawnveltman\LaravelMinifier\CodeParser\ClassContentService;
 use Shawnveltman\LaravelMinifier\CodeParser\MethodAnalysisService;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\AbstractClassForTesting;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\AbstractClassWithMethods;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\AliasesUseStatementClass;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\BaseClass;
@@ -23,6 +24,8 @@ use Shawnveltman\LaravelMinifier\Tests\Fixtures\InterfaceToImplement;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\MultipleMethodsClass;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\OtherClass;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\StaticMethodClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\TestClassWithTraitAliases;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\TestTrait;
 use Shawnveltman\LaravelMinifier\Tests\Fixtures\UseStatementClass;
 
 it('analyzes a class and returns all own method dependencies', function () {
@@ -32,11 +35,7 @@ it('analyzes a class and returns all own method dependencies', function () {
     ]);
     $analysisService = new MethodAnalysisService();
 
-    // Analyze the BaseClass which has no dependencies.
-    $values = $analysisService->analyze_class(BaseClass::class);
-    expect($values)->toBeArray();
-
-    // Now analyze the ChildClass which should have dependencies based on the parentMethod and parentProtectedMethod.
+    // Analyze the ChildClass which should have dependencies based on the parentMethod and parentProtectedMethod.
     $values = $analysisService->analyze_class(ChildClass::class);
 
     expect($values)->toBeArray();
@@ -333,4 +332,34 @@ it('captures the full class definition with parent classes and interfaces', func
     // These are basic string checks, but you could enhance by actually checking PHP syntax/parsing if needed
     expect($storedContent)->toContain('class ChildClass extends BaseClass');
     expect($storedContent)->toContain('implements SomeInterface'); // If ChildClass implements SomeInterface
+});
+
+it('analyzes class with trait aliases', function () {
+    $service = new MethodAnalysisService();
+
+    $className = TestClassWithTraitAliases::class;
+    $expectedMethods = [
+        $className => ['anotherMethod', 'aliasedTraitMethod', 'traitMethod'],
+        TestTrait::class => ['traitMethod'],
+    ];
+
+    $result = $service->analyze_class($className);
+
+    expect($result)->toBe($expectedMethods);
+});
+
+it('analyzes abstract classes and their methods correctly', function () {
+    $analysisService = new MethodAnalysisService();
+
+    Config::set('minifier.namespaces', [
+        'App',
+        'Shawnveltman\LaravelMinifier\Tests\Fixtures',
+    ]);
+
+    $values = $analysisService->analyze_class(AbstractClassForTesting::class);
+
+    expect($values)->toBeArray();
+    expect($values)->toHaveKey(AbstractClassForTesting::class);
+    expect($values[AbstractClassForTesting::class])->toContain('abstractMethod');
+    expect($values[AbstractClassForTesting::class])->toContain('concreteMethod');
 });

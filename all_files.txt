@@ -24,58 +24,51 @@ class ClassContentService
     {
         $classContents = [];
 
-        foreach ($requiredClassesAndMethods as $className => $methods)
-        {
-            $reflection    = new ReflectionClass($className);
-            $fileContent   = file_get_contents($reflection->getFileName());
-            $namespace     = $reflection->getNamespaceName();
+        foreach ($requiredClassesAndMethods as $className => $methods) {
+            $reflection = new ReflectionClass($className);
+            $fileContent = file_get_contents($reflection->getFileName());
+            $namespace = $reflection->getNamespaceName();
             $useStatements = $this->extractUseStatements($fileContent);
-            $shortName     = $reflection->getShortName();
+            $shortName = $reflection->getShortName();
 
             // Construct the class definition with inheritance and interfaces
             $classDefinition = "class {$shortName}";
-            if ($parentClass = $reflection->getParentClass())
-            {
-                $classDefinition .= " extends " . $parentClass->getShortName();
+            if ($parentClass = $reflection->getParentClass()) {
+                $classDefinition .= ' extends '.$parentClass->getShortName();
             }
             $interfaces = $reflection->getInterfaceNames();
-            if (!empty($interfaces))
-            {
+            if (! empty($interfaces)) {
                 $interfaceShortNames = array_map(static function ($interface) {
                     return (new ReflectionClass($interface))->getShortName();
                 }, $interfaces);
-                $classDefinition     .= " implements " . implode(', ', $interfaceShortNames);
+                $classDefinition .= ' implements '.implode(', ', $interfaceShortNames);
             }
 
             // Add namespace, use statements, and class definition
             $newClassContent = "<?php\n\nnamespace {$namespace};\n\n{$useStatements}\n\n{$classDefinition}\n{";
 
             // Add each required method
-            foreach ($methods as $methodName)
-            {
+            foreach ($methods as $methodName) {
                 $methodReflection = new ReflectionMethod($className, $methodName);
-                $traitReflection  = $this->getTraitMethodReflection($methodReflection);
+                $traitReflection = $this->getTraitMethodReflection($methodReflection);
 
-                if ($traitReflection)
-                {
-                    $startLine   = $traitReflection->getStartLine() - 1;
+                if ($traitReflection) {
+                    $startLine = $traitReflection->getStartLine() - 1;
                     $fileContent = file_get_contents($traitReflection->getDeclaringClass()->getFileName());
-                } else
-                {
+                } else {
                     $startLine = $methodReflection->getStartLine() - 1;
                 }
                 $lines = explode("\n", $fileContent);
 
-                $endLine         = $methodReflection->getEndLine();
-                $methodContent   = implode("\n", array_slice($lines, $startLine, $endLine - $startLine));
-                $newClassContent .= "\n\n" . $methodContent;
+                $endLine = $methodReflection->getEndLine();
+                $methodContent = implode("\n", array_slice($lines, $startLine, $endLine - $startLine));
+                $newClassContent .= "\n\n".$methodContent;
             }
 
             $newClassContent .= "\n}\n";
 
             // Ensure that each class is only added once
-            if (!isset($classContents[$className]))
-            {
+            if (! isset($classContents[$className])) {
                 $classContents[$className] = $newClassContent;
             }
         }
@@ -89,13 +82,12 @@ class ClassContentService
 
     private function getTraitMethodReflection(ReflectionMethod $method): ?ReflectionMethod
     {
-        foreach ($method->getDeclaringClass()->getTraits() as $trait)
-        {
-            if ($trait->hasMethod($method->getName()))
-            {
+        foreach ($method->getDeclaringClass()->getTraits() as $trait) {
+            if ($trait->hasMethod($method->getName())) {
                 return $trait->getMethod($method->getName());
             }
         }
+
         return null;
     }
 
@@ -107,14 +99,11 @@ class ClassContentService
         $lines = explode("\n", $fileContent);
 
         // Iterate through the lines and extract use statements
-        foreach ($lines as $line)
-        {
+        foreach ($lines as $line) {
             // Check if the line starts with 'use'
-            if (preg_match('/^\s*use\s+[a-zA-Z0-9_\\\\]+;/', $line))
-            {
+            if (preg_match('/^\s*use\s+[a-zA-Z0-9_\\\\]+;/', $line)) {
                 $useStatements[] = trim($line);
-            } elseif (!empty(trim($line)) && !str_starts_with(trim($line), 'use'))
-            {
+            } elseif (! empty(trim($line)) && ! str_starts_with(trim($line), 'use')) {
                 // Stop parsing when we reach a line that is neither a 'use' statement nor empty
                 continue;
             }
@@ -139,15 +128,13 @@ class MethodAnalysisService
     public function analyze_class($className, $methodName = null): array
     {
         $reflection = $this->get_reflection_class($className);
-        if(! $reflection)
-        {
+        if (! $reflection) {
             return [];
         }
         $currentNamespace = $reflection->getNamespaceName();
 
         $allowed_namespaces = collect(config('minifier.namespaces', ['App']));
-        if(! $allowed_namespaces->contains($currentNamespace))
-        {
+        if (! $allowed_namespaces->contains($currentNamespace)) {
             return [];
         }
 
@@ -159,13 +146,24 @@ class MethodAnalysisService
             $methods = $this->analyze_all_methods($reflection);
         }
 
-        $traits = $this->collectTraits($reflection);
+        [$traits, $traitAliases] = $this->collectTraits($reflection);
+
         foreach ($traits as $traitName) {
             $traitReflection = new ReflectionClass($traitName);
             foreach ($traitReflection->getMethods() as $traitMethod) {
-                $this->requiredMethods[$traitName] ??=[];
-                if (!in_array($traitMethod->getName(), $this->requiredMethods[$traitName])) {
-                    $this->requiredMethods[$traitName][] = $traitMethod->getName();
+                $methodName = $traitMethod->getName();
+
+                if (isset($traitAliases[$methodName])) {
+                    $aliasedMethodName = $traitAliases[$methodName];
+                    $this->requiredMethods[$reflection->getName()] ??= [];
+                    if (!in_array($aliasedMethodName, $this->requiredMethods[$reflection->getName()])) {
+                        $this->requiredMethods[$reflection->getName()][] = $aliasedMethodName;
+                    }
+                } else {
+                    $this->requiredMethods[$traitName] ??= [];
+                    if (!in_array($methodName, $this->requiredMethods[$traitName])) {
+                        $this->requiredMethods[$traitName][] = $methodName;
+                    }
                 }
             }
         }
@@ -191,11 +189,25 @@ class MethodAnalysisService
     private function collectTraits(ReflectionClass $class): array
     {
         $traits = [];
+        $traitAliases = [];
+
         while ($class) {
-            $traits = array_merge($traits, $class->getTraitNames());
+            $traitNames = $class->getTraitNames();
+            foreach ($traitNames as $traitName) {
+                $trait = new ReflectionClass($traitName);
+                $traits[] = $traitName;
+
+                foreach ($class->getTraitAliases() as $method => $alias) {
+                    if ($trait->hasMethod($method)) {
+                        $traitAliases[$alias] = $method;
+                    }
+                }
+            }
+
             $class = $class->getParentClass();
         }
-        return $traits;
+
+        return [$traits, $traitAliases];
     }
 
     protected function is_allowed_namespace($namespace): bool
@@ -232,8 +244,8 @@ class MethodAnalysisService
         if (preg_match_all('/\bnew\s+([a-zA-Z0-9_]+)\b/', $methodBody, $matches)) {
             foreach ($matches[1] as $className) {
                 // If the class name does not include a namespace, prepend the current namespace
-                if (!str_contains($className, '\\')) {
-                    $className = $currentNamespace . '\\' . $className;
+                if (! str_contains($className, '\\')) {
+                    $className = $currentNamespace.'\\'.$className;
                 }
 
                 // Check if the class exists
@@ -289,12 +301,13 @@ class MethodAnalysisService
         return $useStatements;
     }
 
-    private function get_reflection_class($className): ReflectionClass | null
+    private function get_reflection_class($className): ?ReflectionClass
     {
         try {
             $reflection = new ReflectionClass($className);
         } catch (\ReflectionException $e) {
             Log::error('Class analysis failed: '.$e->getMessage());
+
             // Re-throw the exception if you want to ensure that calling code can also handle it
             return null;
         }
@@ -318,8 +331,17 @@ class MethodAnalysisService
     private function analyze_all_methods(ReflectionClass $reflection): array
     {
         $methods = $this->get_own_methods($reflection);
+
         foreach ($methods as $method) {
             $this->requiredMethods[$reflection->getName()][] = $method->getName();
+        }
+
+        // Handle abstract methods
+        if ($reflection->isAbstract()) {
+            $abstractMethods = $reflection->getMethods(ReflectionMethod::IS_ABSTRACT);
+            foreach ($abstractMethods as $abstractMethod) {
+                $this->requiredMethods[$reflection->getName()][] = $abstractMethod->getName();
+            }
         }
 
         $parentClass = $reflection->getParentClass();
@@ -1056,7 +1078,6 @@ namespace External;
 
 class SomeExternalClass
 {
-
 }
 <?php
 
@@ -1069,22 +1090,24 @@ use ReflectionClass;
 use ReflectionMethod;
 use Shawnveltman\LaravelMinifier\CodeParser\ClassContentService;
 use Shawnveltman\LaravelMinifier\CodeParser\MethodAnalysisService;
-use Shawnveltman\LaravelMinifier\Tests\Fixtures\
-{AbstractClassWithMethods,
-    AliasesUseStatementClass,
-    BaseClass,
-    ChildClass,
-    ClassUsingInheritedTraits,
-    ClassWithMultipleNamespaceAliases,
-    ClassWithTrait,
-    DirectInstantiationClass,
-    EmptyClass,
-    InterfaceImplementingClass,
-    InterfaceToImplement,
-    MultipleMethodsClass,
-    OtherClass,
-    StaticMethodClass,
-    UseStatementClass};
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\AbstractClassForTesting;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\AbstractClassWithMethods;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\AliasesUseStatementClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\BaseClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ChildClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassUsingInheritedTraits;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithMultipleNamespaceAliases;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\DirectInstantiationClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\EmptyClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\InterfaceImplementingClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\InterfaceToImplement;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\MultipleMethodsClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\OtherClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\StaticMethodClass;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\TestClassWithTraitAliases;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\TestTrait;
+use Shawnveltman\LaravelMinifier\Tests\Fixtures\UseStatementClass;
 
 it('analyzes a class and returns all own method dependencies', function () {
     Config::set('minifier.namespaces', [
@@ -1093,11 +1116,7 @@ it('analyzes a class and returns all own method dependencies', function () {
     ]);
     $analysisService = new MethodAnalysisService();
 
-    // Analyze the BaseClass which has no dependencies.
-    $values = $analysisService->analyze_class(BaseClass::class);
-    expect($values)->toBeArray();
-
-    // Now analyze the ChildClass which should have dependencies based on the parentMethod and parentProtectedMethod.
+    // Analyze the ChildClass which should have dependencies based on the parentMethod and parentProtectedMethod.
     $values = $analysisService->analyze_class(ChildClass::class);
 
     expect($values)->toBeArray();
@@ -1112,7 +1131,7 @@ it('creates class files with the required methods', function () {
         'App',
         'Shawnveltman\LaravelMinifier\Tests\Fixtures',
     ]);
-    $contentService  = new ClassContentService();
+    $contentService = new ClassContentService();
     $analysisService = new MethodAnalysisService();
 
     // Mock Storage Facade to prevent actual filesystem interaction
@@ -1165,7 +1184,7 @@ it('analyzes a class using a trait and includes the trait methods', function () 
     $values = $analysisService->analyze_class(ClassWithTrait::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey("Shawnveltman\LaravelMinifier\Tests\Fixtures\ExampleTrait");
-//    expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait"])->toContain('methodUsingTrait');
+    //    expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ClassWithTrait"])->toContain('methodUsingTrait');
     expect($values["Shawnveltman\LaravelMinifier\Tests\Fixtures\ExampleTrait"])->toContain('traitMethod');
 });
 
@@ -1189,31 +1208,31 @@ it('analyzes a class using a trait and includes the trait methods and methods of
 });
 
 it('returns empty array for nonexistant class', function () {
-    $analysisService  = new MethodAnalysisService();
+    $analysisService = new MethodAnalysisService();
     $nonExistentClass = 'NonExistentClass';
-    $values           = $analysisService->analyze_class($nonExistentClass);
+    $values = $analysisService->analyze_class($nonExistentClass);
     expect($values)->toBeArray();
     expect($values)->toEqual([]);
 });
 
 it('throws an exception when a non-class is passed', function () {
     $analysisService = new MethodAnalysisService();
-    $nonClass        = 'SomeRandomString';
-    $values          = $analysisService->analyze_class($nonClass);
+    $nonClass = 'SomeRandomString';
+    $values = $analysisService->analyze_class($nonClass);
     expect($values)->toBeArray();
     expect($values)->toEqual([]);
 });
 
 it('analyzes abstract classes and abstract methods correctly', function () {
     $analysisService = new MethodAnalysisService();
-    $values          = $analysisService->analyze_class(AbstractClassWithMethods::class);
+    $values = $analysisService->analyze_class(AbstractClassWithMethods::class);
     expect($values)->toBeArray();
     expect($values[AbstractClassWithMethods::class])->toContain('abstractMethod');
 });
 
 it('handles use statements with aliases correctly', function () {
     $analysisService = new MethodAnalysisService();
-    $values          = $analysisService->analyze_class(AliasesUseStatementClass::class);
+    $values = $analysisService->analyze_class(AliasesUseStatementClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(AliasesUseStatementClass::class);
     expect($values[AliasesUseStatementClass::class])->toContain('methodWithAliasUse');
@@ -1221,7 +1240,7 @@ it('handles use statements with aliases correctly', function () {
 
 it('includes protected parent methods accessed by child classes', function () {
     $analysisService = new MethodAnalysisService();
-    $values          = $analysisService->analyze_class(ChildClass::class);
+    $values = $analysisService->analyze_class(ChildClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(BaseClass::class);
     expect($values[BaseClass::class])->toContain('parentProtectedMethod');
@@ -1229,7 +1248,7 @@ it('includes protected parent methods accessed by child classes', function () {
 
 it('includes depended-upon static methods', function () {
     $analysisService = new MethodAnalysisService();
-    $values          = $analysisService->analyze_class(StaticMethodClass::class);
+    $values = $analysisService->analyze_class(StaticMethodClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(StaticMethodClass::class);
     expect($values[StaticMethodClass::class])->toContain('staticMethod');
@@ -1237,7 +1256,7 @@ it('includes depended-upon static methods', function () {
 
 it('handles empty classes or edge cases appropriately', function () {
     $analysisService = new MethodAnalysisService();
-    $values          = $analysisService->analyze_class(EmptyClass::class);
+    $values = $analysisService->analyze_class(EmptyClass::class);
     expect($values)->toEqual([EmptyClass::class => []]);
 });
 
@@ -1253,7 +1272,7 @@ it('resolves trait inheritance dependencies correctly', function () {
     expect($values)->toBeArray();
     expect($values)->toHaveKey(ClassUsingInheritedTraits::class);
     expect($values[ClassUsingInheritedTraits::class])->toContain('inheritedTraitMethod');
-})->skip(fn() => !class_exists(ClassUsingInheritedTraits::class));
+})->skip(fn () => ! class_exists(ClassUsingInheritedTraits::class));
 
 it('analyzes classes implementing interfaces correctly', function () {
     $analysisService = new MethodAnalysisService();
@@ -1266,14 +1285,13 @@ it('analyzes classes implementing interfaces correctly', function () {
 
     // Use reflection to get the methods from the interface
     $interfaceReflection = new ReflectionClass(InterfaceToImplement::class);
-    $methods             = $interfaceReflection->getMethods(ReflectionMethod::IS_PUBLIC);
+    $methods = $interfaceReflection->getMethods(ReflectionMethod::IS_PUBLIC);
 
-    foreach ($methods as $method)
-    {
+    foreach ($methods as $method) {
         expect($values[InterfaceImplementingClass::class])->toContain($method->getName());
     }
 
-})->skip(fn() => !interface_exists(InterfaceToImplement::class) || !class_exists(InterfaceImplementingClass::class));
+})->skip(fn () => ! interface_exists(InterfaceToImplement::class) || ! class_exists(InterfaceImplementingClass::class));
 it('manages multiple namespace aliases correctly', function () {
     $analysisService = new MethodAnalysisService();
 
@@ -1281,7 +1299,7 @@ it('manages multiple namespace aliases correctly', function () {
 
     expect($values)->toBeArray();
     expect($values[ClassWithMultipleNamespaceAliases::class])->toBe(['methodWithMultipleAliases']);
-})->skip(fn() => !class_exists(ClassWithMultipleNamespaceAliases::class));
+})->skip(fn () => ! class_exists(ClassWithMultipleNamespaceAliases::class));
 
 it('handles errors and logs them appropriately when a class file cannot be analyzed', function () {
     $analysisService = new MethodAnalysisService();
@@ -1289,7 +1307,7 @@ it('handles errors and logs them appropriately when a class file cannot be analy
 
     Log::shouldReceive('error')
         ->once()
-        ->withArgs(fn($message) => str_contains($message, $brokenClassName));
+        ->withArgs(fn ($message) => str_contains($message, $brokenClassName));
 
     $values = $analysisService->analyze_class($brokenClassName);
     expect($values)->toBeArray();
@@ -1316,6 +1334,7 @@ it('ensures the initial class is not added twice', function () {
     // Check that the initial class is listed only once
     $initialClassOccurrences = array_reduce($values, function ($carry, $methods) use ($values) {
         $className = array_search($methods, $values);
+
         return $carry + ($className === UseStatementClass::class ? 1 : 0);
     }, 0);
 
@@ -1324,7 +1343,7 @@ it('ensures the initial class is not added twice', function () {
 
 it('tracks classes instantiated within methods', function () {
     $analysisService = new MethodAnalysisService();
-    $values          = $analysisService->analyze_class(DirectInstantiationClass::class);
+    $values = $analysisService->analyze_class(DirectInstantiationClass::class);
     expect($values)->toBeArray();
     expect($values)->toHaveKey(DirectInstantiationClass::class);
     expect($values[DirectInstantiationClass::class])->toContain('methodWithInstantiation');
@@ -1361,7 +1380,7 @@ it('collects methods from classes that are called within the analyzed class', fu
 //});
 
 it('does not analyze classes that are outside of the configured namespaces', function () {
-    $analysisService       = new MethodAnalysisService();
+    $analysisService = new MethodAnalysisService();
     $outsideNamespaceClass = 'External\SomeExternalClass';
 
     Config::set('minifier.namespaces', [
@@ -1381,7 +1400,7 @@ it('captures the full class definition with parent classes and interfaces', func
     $requiredClassesAndMethods = [
         ChildClass::class => ['childMethod'],
     ];
-    $contentService            = new ClassContentService();
+    $contentService = new ClassContentService();
 
     Storage::fake('local');
     Config::set('minifier.disk', 'local');
@@ -1394,6 +1413,36 @@ it('captures the full class definition with parent classes and interfaces', func
     // These are basic string checks, but you could enhance by actually checking PHP syntax/parsing if needed
     expect($storedContent)->toContain('class ChildClass extends BaseClass');
     expect($storedContent)->toContain('implements SomeInterface'); // If ChildClass implements SomeInterface
+});
+
+it('analyzes class with trait aliases', function () {
+    $service = new MethodAnalysisService();
+
+    $className = TestClassWithTraitAliases::class;
+    $expectedMethods = [
+        $className => ['anotherMethod', 'aliasedTraitMethod', 'traitMethod'],
+        TestTrait::class => ['traitMethod'],
+    ];
+
+    $result = $service->analyze_class($className);
+
+    expect($result)->toBe($expectedMethods);
+});
+
+it('analyzes abstract classes and their methods correctly', function () {
+    $analysisService = new MethodAnalysisService();
+
+    Config::set('minifier.namespaces', [
+        'App',
+        'Shawnveltman\LaravelMinifier\Tests\Fixtures',
+    ]);
+
+    $values = $analysisService->analyze_class(AbstractClassForTesting::class);
+
+    expect($values)->toBeArray();
+    expect($values)->toHaveKey(AbstractClassForTesting::class);
+    expect($values[AbstractClassForTesting::class])->toContain('abstractMethod');
+    expect($values[AbstractClassForTesting::class])->toContain('concreteMethod');
 });
 <?php
 
@@ -1413,6 +1462,15 @@ test('hello', function () {
 
     expect(true)->toBeTrue();
 });
+<?php
+
+namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
+
+abstract class AbstractClassForTesting
+{
+    abstract public function abstractMethod();
+    public function concreteMethod() {}
+}
 <?php
 
 namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
@@ -1523,6 +1581,14 @@ class ClassWithTrait
 
 namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
 
+class ConcreteClassForTesting extends AbstractClassForTesting
+{
+    public function abstractMethod() {}
+}
+<?php
+
+namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
+
 class DirectInstantiationClass
 {
     public function methodWithInstantiation()
@@ -1624,6 +1690,32 @@ class StaticMethodClass
     public static function staticMethod()
     {
         // Static Method content
+    }
+}
+<?php
+
+namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
+
+class TestClassWithTraitAliases
+{
+    use TestTrait {
+        traitMethod as aliasedTraitMethod;
+    }
+
+    public function anotherMethod()
+    {
+        // ...
+    }
+}
+<?php
+
+namespace Shawnveltman\LaravelMinifier\Tests\Fixtures;
+
+trait TestTrait
+{
+    public function traitMethod()
+    {
+        $hello = 'world';
     }
 }
 <?php
