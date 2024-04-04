@@ -42,12 +42,12 @@ class MethodAnalysisService
                 if (isset($traitAliases[$methodName])) {
                     $aliasedMethodName = $traitAliases[$methodName];
                     $this->requiredMethods[$reflection->getName()] ??= [];
-                    if (!in_array($aliasedMethodName, $this->requiredMethods[$reflection->getName()])) {
+                    if (! in_array($aliasedMethodName, $this->requiredMethods[$reflection->getName()])) {
                         $this->requiredMethods[$reflection->getName()][] = $aliasedMethodName;
                     }
                 } else {
                     $this->requiredMethods[$traitName] ??= [];
-                    if (!in_array($methodName, $this->requiredMethods[$traitName])) {
+                    if (! in_array($methodName, $this->requiredMethods[$traitName])) {
                         $this->requiredMethods[$traitName][] = $methodName;
                     }
                 }
